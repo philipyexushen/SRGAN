@@ -2,6 +2,42 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from numba import jit
+import time
+
+
+@jit
+def check_point_pulse(z_value: int, z_max: int, z_min: int, z_med: np.float) -> int:
+    if z_value - z_max < 0 < z_value - z_min:
+        return z_value
+    else:
+        return int(z_med)
+
+@jit
+def find_not_pulse(img: np.ndarray, point: tuple, max_feature_size: tuple = (20, 20))->int:
+    s_size:tuple = (3, 3)
+    width, height = img.shape[:2]
+
+    ret_value = img[point]
+    while s_size[0] <= max_feature_size[0] and  s_size[1] <= max_feature_size[1]:
+        left = int(max(point[0] - s_size[0] // 2, 0))
+        right = int(min(point[0] + s_size[0] // 2 + 1, width))
+        bottom = int(max(point[1] - s_size[1] // 2, 0))
+        top = int(min(point[1] + s_size[1] // 2 + 1, height))
+
+        s:np.ndarray = img[left: right, bottom: top]
+        z_max, z_min, z_med = np.max(s), np.min(s), np.median(s)
+
+        a1 = z_med - z_min
+        a2 = z_med - z_max
+
+        if a2 < 0 < a1:
+            ret_value:int = check_point_pulse(img[point], z_max, z_min, np.float64(z_med))
+            break
+        else:
+            s_size = (s_size[0] + 1, s_size[1] + 1)
+
+    return ret_value
+
 
 class AdaptiveMedianBlur:
     @classmethod
@@ -11,45 +47,9 @@ class AdaptiveMedianBlur:
 
         for i in range(width):
             for j in range(height):
-                img_ret[i, j] = cls().__find_not_pulse(img, (i, j))
+                img_ret[i, j] = find_not_pulse(img, (i, j))
 
         return img_ret
-
-
-    @classmethod
-    def __find_not_pulse(cls, img: np.ndarray, point: tuple, max_feature_size: tuple = (20, 20))->int:
-        s_size:tuple = (3, 3)
-        width, height = img.shape[:2]
-
-        ret_value = img[point]
-        while s_size[0] <= max_feature_size[0] and  s_size[1] <= max_feature_size[1]:
-            left = int(max(point[0] - s_size[0] // 2, 0))
-            right = int(min(point[0] + s_size[0] // 2 + 1, width))
-            bottom = int(max(point[1] - s_size[1] // 2, 0))
-            top = int(min(point[1] + s_size[1] // 2 + 1, height))
-
-            s:np.ndarray = img[left: right, bottom: top]
-
-            z_max, z_min, z_med = np.max(s), np.min(s), np.median(s)
-
-            a1 = z_med - z_min
-            a2 = z_med - z_max
-
-            if a2 < 0 < a1:
-                ret_value:int = cls().__check_point_pulse(img, point, z_max, z_min, z_med)
-                break
-            else:
-                s_size = (s_size[0] + 1, s_size[1] + 1)
-
-        return ret_value
-
-
-    @classmethod
-    def __check_point_pulse(cls, img: np.ndarray, point: tuple, z_max: int, z_min: int, z_med: np.float64)->int:
-        if img[point] - z_max< 0 < img[point] - z_min:
-            return img[point]
-        else:
-            return z_med
 
 
 def add_noise(img: np.ndarray, noise_point_num: int = 10000)->np.ndarray:
@@ -72,7 +72,10 @@ def main():
     img_noise = add_noise(img, int(width*height*0.25))
 
     img_noise_remove_plain = cv2.medianBlur(img_noise, 5)
+    t1 = time.time()
     img_noise_remove = AdaptiveMedianBlur.remove_noise(img_noise)
+    t2 = time.time()
+    print(t2 - t1)
 
     plt.subplot(2, 2, 1)
     plt.title("Original")
