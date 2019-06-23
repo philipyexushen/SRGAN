@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from numba import jit
 
-class AdaptiveMedianFilter:
+class AdaptiveMedianBlur:
     @classmethod
     def remove_noise(cls, img: np.ndarray)->np.ndarray:
         width, height = img.shape[:2]
@@ -46,7 +46,7 @@ class AdaptiveMedianFilter:
 
     @classmethod
     def __check_point_pulse(cls, img: np.ndarray, point: tuple, z_max: int, z_min: int, z_med: np.float64)->int:
-        if  img[point] - z_max< 0 < img[point] - z_min:
+        if img[point] - z_max< 0 < img[point] - z_min:
             return img[point]
         else:
             return z_med
@@ -72,15 +72,19 @@ def main():
     img_noise = add_noise(img, int(width*height*0.25))
 
     img_noise_remove_plain = cv2.medianBlur(img_noise, 5)
-    img_noise_remove = AdaptiveMedianFilter.remove_noise(img_noise)
+    img_noise_remove = AdaptiveMedianBlur.remove_noise(img_noise)
 
     plt.subplot(2, 2, 1)
+    plt.title("Original")
     plt.imshow(img, cmap="gray")
     plt.subplot(2, 2, 2)
+    plt.title("Add Noise Pa=Pb=0.25")
     plt.imshow(img_noise, cmap="gray")
     plt.subplot(2, 2, 3)
+    plt.title("MedianBlur kSize=5")
     plt.imshow(img_noise_remove_plain, cmap="gray")
     plt.subplot(2, 2, 4)
+    plt.title("AdaptiveMedianBlur")
     plt.imshow(img_noise_remove, cmap="gray")
 
     plt.show()
