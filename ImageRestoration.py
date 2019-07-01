@@ -8,16 +8,17 @@ import time
 class AdaptiveMedianBlur:
     @classmethod
     def remove_noise(cls, img: np.ndarray)->np.ndarray:
-        @jit
+        @jit(nopython=True)
         # 注意jit函数不能写成classMethod或者是staticMethod，会让numba无法优化的
         # 当然即使用了jit还是很慢，这是因为代码是python写的问题，换成C++用openmp就没这个破问题了
+        # 这个慢的主要来源是jit要初始化一下，实际函数跑了0.15s
         def check_point_pulse(z_value: int, z_max: int, z_min: int, z_med: np.float) -> int:
             if z_value - z_max < 0 < z_value - z_min:
                 return z_value
             else:
                 return int(z_med)
 
-        @jit
+        @jit(nopython=True)
         def find_not_pulse(_img: np.ndarray, point: tuple, max_feature_size: tuple = (20, 20)) -> int:
             s_size: tuple = (3, 3)
             _width, _height = _img.shape[:2]
@@ -73,10 +74,7 @@ def main():
     img_noise = add_noise(img, int(width*height*0.25))
 
     img_noise_remove_plain = cv2.medianBlur(img_noise, 5)
-    t1 = time.time()
     img_noise_remove = AdaptiveMedianBlur.remove_noise(img_noise)
-    t2 = time.time()
-    print(t2 - t1)
 
     plt.subplot(2, 2, 1)
     plt.title("Original")
